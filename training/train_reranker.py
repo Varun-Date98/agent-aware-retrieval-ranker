@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -48,11 +49,9 @@ def agent_aware_loss(logits: torch.Tensor, labels: torch.Tensor,
     Positive labels are scaled by 1/log(token_count) so shorter,
     information-dense passages get a stronger gradient signal.
     """
-    probs = torch.sigmoid(logits)
     token_weight = 1.0 / torch.log(passage_tokens.clamp(min=2.0))
-    # Weight positives by token efficiency, negatives get weight 1.0
     weight = torch.where(labels > 0.5, token_weight, torch.ones_like(token_weight))
-    bce = -(labels * torch.log(probs + 1e-8) + (1 - labels) * torch.log(1 - probs + 1e-8))
+    bce = F.binary_cross_entropy_with_logits(logits, labels, reduction="none")
     return (weight * bce).mean()
 
 
@@ -103,11 +102,10 @@ def train():
         progress = (step - warmup_steps) / max(1, total_steps - warmup_steps)
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
-    optimizer.step()
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     use_amp = tcfg["mixed_precision"] and device.type == "cuda"
     scaler = GradScaler("cuda", enabled=use_amp)
     accum_steps = tcfg["gradient_accumulation_steps"]
+    scheduler = None
 
     CKPT_DIR.mkdir(parents=True, exist_ok=True)
     best_val_loss = float("inf")
@@ -136,7 +134,10 @@ def train():
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
-                scheduler.step()
+                if scheduler is None:
+                    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+                else:
+                    scheduler.step()
 
             total_loss += loss.item() * accum_steps
             pbar.set_postfix(loss=f"{loss.item() * accum_steps:.4f}")
