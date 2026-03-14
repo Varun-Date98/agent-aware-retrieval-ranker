@@ -1,0 +1,45 @@
+openai:
+  api_key_env: "OPENAI_API_KEY"
+  decomposer_model: "gpt-4o-mini"
+  reasoner_model: "gpt-4o"
+  judge_model: "gpt-4o-mini"
+
+pipeline:
+  use_decomposer: false
+
+retriever:
+  bm25_top_k: 20
+  dense_top_k: 20
+  dense_model: "all-MiniLM-L6-v2"
+  rrf_k: 60
+
+reranker:
+  model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  top_k: 5
+  checkpoint_path: "checkpoints/reranker_best.pt"
+
+training:
+  device: "cuda"
+  mixed_precision: false
+  batch_size: 32
+  gradient_accumulation_steps: 1
+  max_seq_length: 256
+  epochs: 3
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  dataloader_workers: 0
+  pin_memory: true
+  max_train_samples: 30000
+  max_val_samples: 3000
+  hard_negative_ratio: 2
+  easy_negative_ratio: 1
+
+dataset:
+  name: "hotpotqa/hotpot_qa"
+  split: "distractor"
+  eval_samples: 500
+
+evaluation:
+  semantic_similarity_threshold: 0.85
+  recall_at_k: [5, 10, 20]

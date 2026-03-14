@@ -1,0 +1,16 @@
+--index-url https://download.pytorch.org/whl/cu126
+torch>=2.0
+--extra-index-url https://pypi.org/simple/
+transformers>=4.35
+sentence-transformers>=2.2
+rank-bm25>=0.2.2
+datasets>=2.14
+faiss-cpu>=1.7
+openai>=1.0
+tiktoken>=0.5
+pyyaml>=6.0
+numpy>=1.24
+pandas>=1.5
+tqdm>=4.65
+scikit-learn>=1.3
+python-dotenv>=1.0
