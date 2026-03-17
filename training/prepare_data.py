@@ -19,8 +19,8 @@ from src.utils import load_config
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
-def _passage_id(title: str, sent_idx: int) -> str:
-    return hashlib.md5(f"{title}::{sent_idx}".encode()).hexdigest()[:12]
+def _passage_id(title: str, text: int) -> str:
+    return hashlib.md5(f"{title}::{text}".encode()).hexdigest()[:12]
 
 
 def _build_corpus_and_samples(cfg: dict):
@@ -69,7 +69,7 @@ def _build_corpus_and_samples(cfg: dict):
 
         for title, sentences in zip(row["context"]["title"], row["context"]["sentences"]):
             full_text = " ".join(sentences)
-            doc_id = _passage_id(title, 0)
+            doc_id = _passage_id(title, full_text)
             doc = {"doc_id": doc_id, "title": title, "text": full_text}
             corpus[doc_id] = doc
 

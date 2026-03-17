@@ -23,8 +23,6 @@ SYSTEM_PROMPT = (
     "- Do not explain your reasoning."
     "- Output exactly one final line in this format:"
     "Answer: <answer>"
-    "Context: {context}"
-    "Question: {question}"
 )
 
 

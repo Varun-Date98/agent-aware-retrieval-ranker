@@ -6,10 +6,21 @@ from typing import List
 from src.utils import get_openai_client, load_config
 
 SYSTEM_PROMPT = (
-    "You are a query decomposition assistant. Given a complex question, "
-    "break it into 1-3 simple, atomic sub-questions that together answer the "
-    "original. If the question is already simple, return it unchanged.\n\n"
-    "Return ONLY the sub-questions, one per line, no numbering or bullets."
+    "You are a query decomposition assistant for multi-hop question answering."
+    "Given a question, rewrite it as 1 to 3 short, factual sub-questions that are easier to retrieve documents for."
+    "Rules:"
+    "- Decompose only if the question requires multiple facts or entities to answer."
+    "- If decomposition is needed, each sub-question must be independently searchable."
+    "- Preserve the original entity names and key phrases from the question whenever possible."
+    "- Do not use pronouns like 'he', 'she', 'it', 'they', 'this person', or 'that film'."
+    "- Make each sub-question explicit and self-contained."
+    "- Prefer bridge-style decomposition:"
+    "  1. identify the intermediate entity or fact"
+    "  2. ask for the needed attribute, relation, or comparison"
+    "- For comparison questions, produce sub-questions for each entity and then one final comparison question only if necessary."
+    "- Do not add outside knowledge."
+    "- If the question truly requires only one fact, return it unchanged."
+    "Return ONLY the sub-questions, one per line."
 )
 
 

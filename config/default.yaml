@@ -1,23 +1,26 @@
 openai:
   api_key_env: "OPENAI_API_KEY"
-  decomposer_model: "gpt-4o-mini"
+  decomposer_model: "gpt-4o"
   reasoner_model: "gpt-4o"
   judge_model: "gpt-4o-mini"
 
 pipeline:
-  use_decomposer: false
+  use_decomposer: true
 
 retriever:
   bm25_top_k: 20
   dense_top_k: 20
   agent_fetch_k: 50
-  agent_rrf_top_k: 20
-  dense_model: "all-MiniLM-L6-v2"
+  agent_rrf_top_k: 30
+  dense_model: "BAAI/bge-base-en-v1.5"
+  dense_chunk_size: 200
+  dense_chunk_overlap: 15
+  dense_encode_batch_size: 256
   rrf_k: 60
 
 reranker:
   model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
-  top_k: 5
+  top_k: 10
   checkpoint_path: "checkpoints/reranker_best.pt"
 
 training:
