@@ -1,6 +1,7 @@
 """Evaluation metrics: EM, F1, semantic match, LLM judge, tokens, latency."""
 from __future__ import annotations
 
+import logging
 import re
 import string
 from typing import List
@@ -65,11 +66,26 @@ class SemanticMatcher:
 # LLM-as-judge
 # ---------------------------------------------------------------------------
 JUDGE_PROMPT = (
-    "Given the question and the reference answer, is the predicted answer correct?\n"
-    "Respond with ONLY 'correct' or 'incorrect'.\n\n"
-    "Question: {question}\n"
-    "Reference answer: {gold}\n"
-    "Predicted answer: {predicted}"
+    "You are evaluating short-form question answering."
+    "\nYour task is to determine whether the predicted answer matches the reference answer in meaning."
+
+    "Evaluation rules:"
+    "1. Treat paraphrases as correct."
+    "2. Treat equivalent short answers as correct."
+    "3. For yes/no questions, compare the actual meaning, not wording."
+    "4. If the reference is 'no' and the prediction clearly means no, mark correct."
+    "5. If the prediction contains the correct answer plus harmless extra text, mark correct."
+    "6. If the prediction says the answer is missing or unknown but the reference gives a real answer, mark incorrect."
+    "7. If the prediction contains any wrong entity, wrong year, wrong title, or contradiction, mark incorrect."
+    "8. If uncertain, mark incorrect."
+
+    "Return exactly one word:"
+    "correct"
+    "or"
+    "incorrect"
+    "\nQuestion: {question}"
+    "\nReference Answer: {gold}"
+    "\nPredicted Answer: {predicted}"
 )
 
 
@@ -87,7 +103,14 @@ def llm_judge(question: str, predicted: str, gold: str) -> float:
         max_tokens=16,
     )
     verdict = response.choices[0].message.content.strip().lower()
-    return 1.0 if "correct" in verdict else 0.0
+    score = 0.0 if len(verdict.split()) > 1 else (1.0 if verdict == "correct" else 0.0)
+    logger = logging.getLogger("benchmarks")
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "LLM Judge response: %r -> score=%.0f | Q: %.60s | pred: %.60s | gold: %.60s",
+            verdict, score, question, predicted, gold,
+        )
+    return score
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +132,10 @@ def compute_all_metrics(
         f1s.append(token_f1(pred, gold))
         sems.append(matcher.match(pred, gold))
         if run_judge:
-            judges.append(llm_judge(q, pred, gold))
+            try:
+                judges.append(llm_judge(q, pred, gold))
+            except Exception:
+                judges.append(0.0)
 
     results = {
         "EM": float(np.mean(ems)),

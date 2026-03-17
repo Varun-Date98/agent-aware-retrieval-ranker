@@ -5,7 +5,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 import tiktoken
 import yaml
@@ -39,7 +39,7 @@ def get_openai_client():
         raise RuntimeError(
             f"Set the {cfg['openai']['api_key_env']} environment variable"
         )
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, max_retries=3, timeout=60.0)
 
 
 def count_tokens(text: str, model: str = "gpt-4o") -> int:
@@ -82,3 +82,12 @@ class ScoredPassage:
     text: str
     score: float
     title: str = ""
+
+
+def format_passages(passages: list, max_text_len: int = 150) -> str:
+    """Format ScoredPassage list for logging. Truncates text to max_text_len chars."""
+    parts = []
+    for i, p in enumerate(passages, 1):
+        snippet = p.text[:max_text_len] + ("..." if len(p.text) > max_text_len else "")
+        parts.append(f'[{i}] doc_id={p.doc_id} title={p.title!r} score={p.score:.3f}: "{snippet}"')
+    return "\n    ".join(parts) if parts else "(none)"

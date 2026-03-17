@@ -1,10 +1,13 @@
 """Run all 4 methods on the evaluation set and print the result table.
 
 Run:  python -m benchmarks.run_benchmarks
+      python -m benchmarks.run_benchmarks --verbose   # DEBUG logging
 """
 from __future__ import annotations
 
+import argparse
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -37,14 +40,23 @@ def _load_eval_set(cfg: dict) -> list[dict]:
     return samples
 
 
-def _run_method(name: str, pipeline, eval_samples: list[dict]):
+def _run_method(name: str, pipeline, eval_samples: list[dict], verbose: bool = False):
     """Run a pipeline on all eval samples, collecting results."""
     questions, predictions, golds = [], [], []
     token_counts = []
     lat_retrieval, lat_rerank, lat_reasoning, lat_e2e = [], [], [], []
 
-    for sample in tqdm(eval_samples, desc=name):
-        result: PipelineResult = pipeline.run(sample["question"])
+    errors = 0
+    for i, sample in enumerate(tqdm(eval_samples, desc=name)):
+        log_ctx = {"method": name, "sample_idx": i} if verbose else None
+        try:
+            result: PipelineResult = pipeline.run(
+                sample["question"], log_context=log_ctx
+            )
+        except Exception as e:
+            errors += 1
+            tqdm.write(f"  [WARN] {name} sample failed: {e}")
+            result = PipelineResult()
         questions.append(sample["question"])
         predictions.append(result.answer)
         golds.append(sample["answer"])
@@ -53,6 +65,9 @@ def _run_method(name: str, pipeline, eval_samples: list[dict]):
         lat_rerank.append(result.latency_reranking_ms)
         lat_reasoning.append(result.latency_reasoning_ms)
         lat_e2e.append(result.latency_e2e_ms)
+
+    if errors:
+        tqdm.write(f"  [WARN] {name}: {errors}/{len(eval_samples)} samples failed")
 
     return {
         "questions": questions,
@@ -87,7 +102,23 @@ def _print_table(all_results: dict):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run retrieval + reasoning benchmarks")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging (question, passages, prompt, response)")
+    parser.add_argument("--log-file", type=str, default=None, help="Log file path (default: benchmarks/benchmark_debug.log when verbose)")
+    args = parser.parse_args()
     cfg = load_config()
+    verbose = args.verbose or cfg.get("benchmarks", {}).get("verbose", False)
+
+    if verbose:
+        log_path = args.log_file or str(RESULTS_DIR / "benchmark_debug.log")
+        logger = logging.getLogger("benchmarks")
+        logger.setLevel(logging.DEBUG)
+        if not logger.handlers:
+            h = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+            h.setLevel(logging.DEBUG)
+            logger.addHandler(h)
+        logger.debug("Verbose logging enabled -> %s", log_path)
+        print(f"  Verbose logs -> {log_path}")
 
     print("Loading evaluation set...")
     eval_samples = _load_eval_set(cfg)
@@ -106,7 +137,7 @@ def main():
     all_results = {}
     for name, pipeline in methods.items():
         print(f"\nRunning {name}...")
-        raw = _run_method(name, pipeline, eval_samples)
+        raw = _run_method(name, pipeline, eval_samples, verbose=verbose)
         metrics = compute_all_metrics(
             raw["questions"], raw["predictions"], raw["golds"],
             semantic_matcher=semantic_matcher,

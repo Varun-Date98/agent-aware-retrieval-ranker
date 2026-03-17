@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import List
 
@@ -13,7 +14,7 @@ from src.retriever import (
     DenseRetriever,
     HybridRetriever,
 )
-from src.utils import PipelineResult, ScoredPassage, load_config, timer
+from src.utils import PipelineResult, ScoredPassage, format_passages, load_config, timer
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -41,7 +42,7 @@ class AgentAwareRankerPipeline:
                 corpus.append(json.loads(line))
         return corpus
 
-    def run(self, query: str) -> PipelineResult:
+    def run(self, query: str, log_context: dict | None = None) -> PipelineResult:
         result = PipelineResult()
 
         with timer() as e2e:
@@ -50,22 +51,44 @@ class AgentAwareRankerPipeline:
 
             # Retrieval
             with timer() as t_ret:
+                rcfg = self.cfg["retriever"]
+                fetch_k = rcfg.get("agent_fetch_k")
+                rrf_top = rcfg.get("agent_rrf_top_k")
                 all_passages: dict[str, ScoredPassage] = {}
                 for sq in sub_queries:
-                    for p in self.hybrid.retrieve(sq):
-                        if p.doc_id not in all_passages or p.score > all_passages[p.doc_id].score:
-                            all_passages[p.doc_id] = p
+                    if fetch_k is not None and rrf_top is not None:
+                        for p in self.hybrid.retrieve(sq, top_k=rrf_top, fetch_per_retriever=fetch_k):
+                            if p.doc_id not in all_passages or p.score > all_passages[p.doc_id].score:
+                                all_passages[p.doc_id] = p
+                    else:
+                        for p in self.hybrid.retrieve(sq):
+                            if p.doc_id not in all_passages or p.score > all_passages[p.doc_id].score:
+                                all_passages[p.doc_id] = p
                 candidates = list(all_passages.values())
             result.latency_retrieval_ms = t_ret.elapsed_ms
+
+            if log_context:
+                logger = logging.getLogger("benchmarks")
+                logger.debug(
+                    "[%s] sample %s: Question: %s",
+                    log_context.get("method"),
+                    log_context.get("sample_idx"),
+                    query,
+                )
+                logger.debug("  Retrieved (%d): %s", len(candidates), format_passages(candidates))
 
             # Reranking
             with timer() as t_rerank:
                 reranked = self.reranker.rerank(query, candidates)
             result.latency_reranking_ms = t_rerank.elapsed_ms
 
+            if log_context:
+                logger = logging.getLogger("benchmarks")
+                logger.debug("  Reranked (%d): %s", len(reranked), format_passages(reranked))
+
             # Reasoning
             with timer() as t_reason:
-                answer, token_count = self.reasoner.reason(query, reranked)
+                answer, token_count = self.reasoner.reason(query, reranked, log_context=log_context)
             result.latency_reasoning_ms = t_reason.elapsed_ms
 
             result.answer = answer

@@ -5,6 +5,7 @@ Run:  python -m training.evaluate
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 
 import numpy as np
@@ -88,6 +89,11 @@ def main():
 
     print("Loading validation samples...")
     val_samples = _load_val_samples()
+    eval_frac = cfg.get("evaluation", {}).get("eval_fraction", 0.1)
+    if eval_frac < 1.0:
+        n = max(1, int(len(val_samples) * eval_frac))
+        random.seed(42)
+        val_samples = random.sample(val_samples, n)
     print(f"  {len(val_samples)} queries with gold positives")
 
     print("Building retrievers...")

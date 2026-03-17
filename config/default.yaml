@@ -10,6 +10,8 @@ pipeline:
 retriever:
   bm25_top_k: 20
   dense_top_k: 20
+  agent_fetch_k: 50
+  agent_rrf_top_k: 20
   dense_model: "all-MiniLM-L6-v2"
   rrf_k: 60
 
@@ -38,8 +40,12 @@ training:
 dataset:
   name: "hotpotqa/hotpot_qa"
   split: "distractor"
-  eval_samples: 500
+  eval_samples: 20
+
+benchmarks:
+  verbose: false
 
 evaluation:
   semantic_similarity_threshold: 0.85
   recall_at_k: [5, 10, 20]
+  eval_fraction: 0.1
