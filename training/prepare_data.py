@@ -97,6 +97,14 @@ def _build_corpus_and_samples(cfg: dict):
     return corpus, samples
 
 
+def _format_passage_with_title(doc: dict) -> str:
+    title = (doc.get("title") or "").strip()
+    text = (doc.get("text") or "").strip()
+    if title:
+        return f"{title}. {text}"
+    return text
+
+
 def _generate_triplets(corpus: dict, samples: list, cfg: dict):
     """Generate (query, passage, label) triplets with easy + hard negatives.
 
@@ -119,7 +127,7 @@ def _generate_triplets(corpus: dict, samples: list, cfg: dict):
         for pos_id in sample["positives"]:
             triplets.append({
                 "query": q,
-                "passage": corpus[pos_id]["text"],
+                "passage": _format_passage_with_title(corpus[pos_id]),
                 "label": 1,
                 "doc_id": pos_id,
             })
@@ -129,7 +137,7 @@ def _generate_triplets(corpus: dict, samples: list, cfg: dict):
                 if neg_id in corpus:
                     triplets.append({
                         "query": q,
-                        "passage": corpus[neg_id]["text"],
+                        "passage": _format_passage_with_title(corpus[neg_id]),
                         "label": 0,
                         "doc_id": neg_id,
                     })
@@ -140,7 +148,7 @@ def _generate_triplets(corpus: dict, samples: list, cfg: dict):
                     neg_id = random.choice(all_doc_ids)
                 triplets.append({
                     "query": q,
-                    "passage": corpus[neg_id]["text"],
+                    "passage": _format_passage_with_title(corpus[neg_id]),
                     "label": 0,
                     "doc_id": neg_id,
                 })

@@ -9,12 +9,24 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from src.utils import ScoredPassage, load_config
 
 
+def _format_passage(p: ScoredPassage) -> str:
+    """Format passage with title prefix for reranker input."""
+    title = (p.title or "").strip()
+    text = (p.text or "").strip()
+    if title:
+        return f"{title}. {text}"
+    return text
+
+
 class NeuralReranker:
     def __init__(self, checkpoint_path: str | None = None):
         cfg = load_config()
         rcfg = cfg["reranker"]
         self.model_name = rcfg["model"]
         self.top_k = rcfg["top_k"]
+        self.max_seq_length = rcfg.get(
+            "max_seq_length", cfg["training"].get("max_seq_length", 512)
+        )
         self.device = torch.device(
             cfg["training"]["device"] if torch.cuda.is_available() else "cpu"
         )
@@ -40,12 +52,12 @@ class NeuralReranker:
         if not passages:
             return []
 
-        pairs = [[query, p.text] for p in passages]
+        pairs = [[query, _format_passage(p)] for p in passages]
         encoded = self.tokenizer(
             pairs,
             padding=True,
             truncation=True,
-            max_length=256,
+            max_length=self.max_seq_length,
             return_tensors="pt",
         ).to(self.device)
 

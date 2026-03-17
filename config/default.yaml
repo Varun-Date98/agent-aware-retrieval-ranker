@@ -21,6 +21,7 @@ retriever:
 reranker:
   model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
   top_k: 10
+  max_seq_length: 512
   checkpoint_path: "checkpoints/reranker_best.pt"
 
 training:
@@ -28,7 +29,7 @@ training:
   mixed_precision: false
   batch_size: 32
   gradient_accumulation_steps: 1
-  max_seq_length: 256
+  max_seq_length: 512
   epochs: 3
   learning_rate: 2.0e-5
   weight_decay: 0.01
@@ -43,7 +44,7 @@ training:
 dataset:
   name: "hotpotqa/hotpot_qa"
   split: "distractor"
-  eval_samples: 20
+  eval_samples: 200
 
 benchmarks:
   verbose: false
