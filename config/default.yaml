@@ -20,7 +20,7 @@ retriever:
 
 reranker:
   model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
-  top_k: 10
+  top_k: 20
   max_seq_length: 512
   checkpoint_path: "checkpoints/reranker_best.pt"
 
