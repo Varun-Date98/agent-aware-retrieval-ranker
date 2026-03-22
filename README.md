@@ -41,6 +41,54 @@ python -m training.evaluate
 python -m benchmarks.run_benchmarks
 ```
 
+### 5. Run the API server
+
+**Development server:**
+```bash
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Production (with multiple workers):**
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+### 6. API Example Usage
+
+```bash
+curl -X POST "http://localhost:8000/rerank" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the capital of France?",
+    "passages": [
+      {"doc_id": "1", "text": "Paris is the capital of France.", "title": "France"},
+      {"doc_id": "2", "text": "Berlin is the capital of Germany.", "title": "Germany"}
+    ],
+    "top_k": 5
+  }'
+```
+
+**Response:**
+```json
+{
+  "reranked_passages": [
+    {
+      "doc_id": "1",
+      "text": "Paris is the capital of France.",
+      "title": "France",
+      "score": 0.95
+    },
+    {
+      "doc_id": "2",
+      "text": "Berlin is the capital of Germany.",
+      "title": "Germany",
+      "score": 0.12
+    }
+  ],
+  "latency_ms": 45.2
+}
+```
+
 ## Configuration
 
 All settings live in `config/default.yaml`. Model names, hyperparameters, and feature
