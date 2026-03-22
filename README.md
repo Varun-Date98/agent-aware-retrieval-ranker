@@ -5,7 +5,7 @@ A smart AI layer that optimizes web search results for agents instead of humans.
 ## Pipeline
 
 ```
-Agent Query → Retrieval (BM25 + Dense) → Neural Reranking → LLM Reasoning → Answer
+Agent Query → Query Decomposer → Retrieval (BM25 + Dense) → Neural Reranking → LLM Reasoning → Answer
 ```
 
 ## Setup
